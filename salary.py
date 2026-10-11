@@ -68,8 +68,16 @@ def calculate_salary(df, hourly_rate, city_bonus):
     res_cols = ['Часы', 'Работа', 'ГСМ', 'Доп_выплаты', 'Итого', 'Цена_бензина_файл']
     df[res_cols] = df.apply(compute_details, axis=1)
     return df
+try:
+    st.set_page_config(page_title="Калькулятор выплат", layout="wide")
+except Exception:
+    pass
 
-st.set_page_config(page_title="Калькулятор выплат", layout="wide")
+if not st.session_state.get("admin_logged_in", False):
+    st.title("🔐 Калькулятор зарплаты")
+    st.warning("Для доступа к калькулятору зарплаты необходимо войти с правами администратора.")
+    st.stop()
+
 st.title("Калькулятор зарплаты")
 
 # --- Интерфейс управления ставками ---

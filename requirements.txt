@@ -6,3 +6,5 @@ telebot
 dotenv
 xlsxwriter
 openpyxl
+python-docx
+requests

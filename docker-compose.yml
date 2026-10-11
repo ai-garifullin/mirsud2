@@ -57,37 +57,28 @@ services:
     networks:
       - mynet
     volumes:
+      - ./:/app
       - ./attachments:/app/attachments
     depends_on:
       - db
     # Запускаем form_app.py на другом порту
     command: streamlit run form_app.py --server.port=8502 --server.address=0.0.0.0
 
-  sal:
-    build: .
-    container_name: service_desk_salary
-    restart: always
-    ports:
-      - "8503:8503"
-    networks:
-      - mynet
-    volumes:
-      - ./attachments:/app/attachments
-    command: streamlit run salary.py --server.port=8503 --server.address=0.0.0.0
-  
-  croc:
-    build: .
-    container_name: service_desk_croc
-    restart: always
-    ports:
-      - "8504:8504"
-    networks:
-      - mynet
-    volumes:
-      - ./attachments:/app/attachments
-    command: streamlit run croc.py --server.port=8504 --server.address=0.0.0.0
 
   # 4. Боты (Telegram + Email)
+  admin_panel:
+    build: .
+    container_name: service_desk_admin_panel
+    restart: always
+    ports:
+      - "8505:8505"
+    networks:
+      - mynet
+    volumes:
+      - ./:/app
+      - ./attachments:/app/attachments
+    command: streamlit run admin_panel.py --server.port=8505 --server.address=0.0.0.0
+
   bot:
     build: .
     container_name: service_desk_bot
