@@ -1,9 +1,11 @@
+from __future__ import annotations
 import streamlit as st
 import json
 import os
 import time
 import hmac
 import hashlib
+from typing import Optional
 from urllib.parse import unquote
 import streamlit.components.v1 as components
 from dotenv import load_dotenv
@@ -24,7 +26,7 @@ def sign_auth_cookie(login_val: str) -> str:
     signature = hmac.new(SESSION_SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
     return f"{payload}:{signature}"
 
-def verify_auth_cookie(cookie_val: str, max_age_days: int = 30) -> str | None:
+def verify_auth_cookie(cookie_val: str, max_age_days: int = 30) -> Optional[str]:
     """Проверяет подпись HMAC и срок действия куки. Возвращает login при успехе, иначе None."""
     if not cookie_val:
         return None
