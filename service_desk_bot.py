@@ -117,6 +117,8 @@ def process_description(message):
     chat_id = message.chat.id
     # В ТГ текст при файле лежит в caption, а просто текст в text
     input_text = message.caption if message.caption else message.text
+    if input_text:
+        input_text = input_text[:5000].strip()
     file_save_path = None
 
     # Обработка вложения
@@ -275,14 +277,18 @@ def handle_all_steps(message):
 
 def process_fio(message, text):
     chat_id = message.chat.id
-    user_data[chat_id]['fio'] = text
+    clean_fio = (text or '').strip()[:150]
+    if not clean_fio:
+        bot.send_message(chat_id, "Пожалуйста, введите ваше ФИО.")
+        return
+    user_data[chat_id]['fio'] = clean_fio
     # Сохраняем или обновляем Chat_ID в базе
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT User_ID FROM user WHERE Full_Name = %s", (text,))
+    cursor.execute("SELECT User_ID FROM user WHERE Full_Name = %s", (clean_fio,))
     res = cursor.fetchone()
     if res: cursor.execute("UPDATE user SET Chat_ID = %s WHERE User_ID = %s", (chat_id, res[0]))
-    else: cursor.execute("INSERT INTO user (Full_Name, Chat_ID) VALUES (%s, %s)", (text, chat_id))
+    else: cursor.execute("INSERT INTO user (Full_Name, Chat_ID) VALUES (%s, %s)", (clean_fio, chat_id))
     conn.commit()
     conn.close()
     

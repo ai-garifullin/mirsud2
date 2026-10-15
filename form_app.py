@@ -7,6 +7,7 @@ from db_utils import (
 )
 from dotenv import load_dotenv
 import json
+import re
 load_dotenv()
 # --- 3. ИНТЕРФЕЙС ---
 st.markdown("""
@@ -271,8 +272,18 @@ else:
                 if not is_valid:
                     st.error(f"❌ {err_msg}")
                     st.stop()
-            if not all([user_fullname, phone, selected_district_name, section_number, selected_type_name, description]):
+            clean_name = str(user_fullname or '').strip()
+            clean_phone = str(phone or '').strip()
+            clean_desc = str(description or '').strip()
+
+            if not all([clean_name, clean_phone, selected_district_name, section_number, selected_type_name, clean_desc]):
                 st.error("❌ Пожалуйста, заполните все поля.")
+            elif len(clean_name) > 150:
+                st.error("❌ Длина ФИО не должна превышать 150 символов.")
+            elif len(clean_desc) > 10000:
+                st.error("❌ Описание слишком длинное (максимум 10 000 символов).")
+            elif not re.match(r'^[0-9+\-()\s]{6,30}$', clean_phone):
+                st.error("❌ Введите корректный номер телефона (от 6 до 30 символов: цифры, +, -, скобки).")
             else:
                 district_id = districts_map.get(selected_district_name)
                 request_type_id = types_map.get(selected_type_name)
@@ -282,11 +293,11 @@ else:
                     st.error(f"❌ Ошибка: Судебный участок №{section_number} не найден в районе '{selected_district_name}'.")
                 else:
                     request_data = {
-                        'user_fullname': user_fullname,
-                        'phone': phone,
+                        'user_fullname': clean_name,
+                        'phone': clean_phone,
                         'section_id': section_id,
                         'request_type_id': request_type_id,
-                        'description': description
+                        'description': clean_desc
                     }
                     
                     new_id = create_request(request_data, uploaded_file)

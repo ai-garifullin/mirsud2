@@ -180,10 +180,10 @@ def process_emails():
             _, msg_data = mail.fetch(e_id, "(RFC822)")
             msg = email.message_from_bytes(msg_data[0][1])
 
-            raw_subject = clean_text(msg.get("Subject", "Без темы"))
-            raw_from = clean_text(msg.get("From", ""))
-            sender_email = extract_email_address(raw_from)
-            body = get_email_body(msg).strip()
+            raw_subject = clean_text(msg.get("Subject", "Без темы"))[:250].strip() or "Без темы"
+            raw_from = clean_text(msg.get("From", ""))[:250].strip() or "Неизвестный отправитель"
+            sender_email = extract_email_address(raw_from)[:100].strip()
+            body = get_email_body(msg).strip()[:20000]
 
             logger.info(f"📨 От: {sender_email} | Тема: {raw_subject}")
 
