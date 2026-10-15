@@ -3,9 +3,10 @@ import urllib.request
 import urllib.parse
 import json
 from datetime import datetime
+import os
 from db_utils import verify_user_credentials
 
-YANDEX_DISK_PUBLIC_URL = "https://disk.yandex.ru/d/t8813cr2Yl5DZg"
+YANDEX_DISK_PUBLIC_URL = os.getenv("CLOUD_LINK", "https://disk.yandex.ru/d/t8813cr2Yl5DZg")
 API_BASE_URL = "https://cloud-api.yandex.net/v1/disk/public/resources"
 
 def format_size(bytes_val):
