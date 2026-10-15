@@ -7,6 +7,7 @@ import time
 import requests
 from urllib.parse import urlencode
 import hashlib
+import html
 import dotenv
 import os
 
@@ -195,15 +196,17 @@ def render_detail_view(request_id):
             st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
             
             # 1. ОТРИСОВКА ИСХОДНОЙ ЗАЯВКИ (Из таблицы Request)
-            initial_desc = data.get('Description', '').replace('\n', '<br>')
-            initial_date = data.get('Date_Received') # Убедитесь, что это поле datetime
+            raw_desc = str(data.get('Description', '') or '')
+            initial_desc = html.escape(raw_desc).replace('\n', '<br>')
+            initial_date = data.get('Date_Received')
             date_str = initial_date.strftime('%d.%m.%Y %H:%M') if initial_date else "Неизвестно"
+            escaped_date_str = html.escape(str(date_str))
             
             st.markdown(f"""
                 <div class='message-box initial-msg'>
                     <div class='meta-info'>
                         <span>🚀 ИСХОДНАЯ ЗАЯВКА</span>
-                        <span>{date_str}</span>
+                        <span>{escaped_date_str}</span>
                     </div>
                     {initial_desc}
                 </div>
@@ -213,27 +216,32 @@ def render_detail_view(request_id):
             messages = fetch_request_messages(request_id)
             
             # 3. ЦИКЛ ОТРИСОВКИ СООБЩЕНИЙ
-            messages = fetch_request_messages(request_id)
             for msg in messages:
                 # 1. Определяем стили и имя
                 if msg['Sender_Type'] == 'Client':
-                    css, name = "client-msg", f"👤 {data.get('User_Name')}"
+                    user_display = data.get('User_Name') or 'Заявитель'
+                    css, name = "client-msg", f"👤 {user_display}"
                 elif msg['Sender_Type'] == 'Internal':
-                    css, name = "internal-msg", f"📌 {msg['Author']}"
+                    author_display = msg.get('Author') or 'Внутренняя заметка'
+                    css, name = "internal-msg", f"📌 {author_display}"
                 else:
-                    css, name = "support-msg", f"🛠 {msg['Author']}"
+                    author_display = msg.get('Author') or 'Служба поддержки'
+                    css, name = "support-msg", f"🛠 {author_display}"
                 
-                # 2. ГОТОВИМ ТЕКСТ ЗАРАНЕЕ (решаем проблему с \n)
-                raw_text = msg.get('Message_Text', '')
-                clean_text = raw_text.replace('\n', '<br>')
-                formatted_date = msg['Created_At'].strftime('%d.%m %H:%M')
+                # 2. ГОТОВИМ ТЕКСТ ЗАРАНЕЕ (защита от XSS через html.escape)
+                raw_text = str(msg.get('Message_Text', '') or '')
+                clean_text = html.escape(raw_text).replace('\n', '<br>')
+                created_at = msg.get('Created_At')
+                formatted_date = created_at.strftime('%d.%m %H:%M') if created_at else ''
+                escaped_name = html.escape(str(name))
+                escaped_date = html.escape(str(formatted_date))
 
-                # 3. Выводим чистую f-строку без лишней логики внутри скобок
+                # 3. Выводим экранированную f-строку
                 st.markdown(f"""
                     <div class='message-box {css}'>
                         <div class='meta-info'>
-                            <span>{name}</span>
-                            <span>{formatted_date}</span>
+                            <span>{escaped_name}</span>
+                            <span>{escaped_date}</span>
                         </div>
                         {clean_text}
                     </div>
@@ -427,12 +435,17 @@ def render_detail_view(request_id):
            
 
         with col2:
-            # Информация о заявителе
+            # Информация о заявителе (экранируем HTML для безопасности)
+            user_str = html.escape(str(data.get('User_Name') or 'Не указан'))
+            dist_str = html.escape(str(data.get('District_Name') or 'Не указан'))
+            sec_str = html.escape(str(data.get('Section_Number') or 'Не указан'))
+            phone_str = html.escape(str(data.get('Landline_Phone') or 'Не указан'))
+            closed_str = html.escape(str(data.get('Closed_At') or 'Не указан'))
             st.markdown(f"""
-                **Заявитель:** {data.get('User_Name', 'Не указан')}<br>
-                **Район:** {data.get('District_Name', 'Не указан')}, {data.get('Section_Number', 'Не указан')}<br>
-                **Раб.тел.:** {data.get('Landline_Phone', 'Не указан')}<br>
-                **Закрыта:** {data.get('Closed_At', 'Не указан')}
+                **Заявитель:** {user_str}<br>
+                **Район:** {dist_str}, {sec_str}<br>
+                **Раб.тел.:** {phone_str}<br>
+                **Закрыта:** {closed_str}
                 """, unsafe_allow_html=True)
         col1, col2 = st.columns([1, 1])
         with col1:

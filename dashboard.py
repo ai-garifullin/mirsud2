@@ -31,12 +31,12 @@ if "logged_in" not in st.session_state:
 
 # --- 2. УПРАВЛЕНИЕ КУКИ ЧЕРЕЗ JS (Только запись и удаление) ---
 def set_auth_cookie(login_val):
-    
+    login_safe = json.dumps(str(login_val))
     js_code = f"""
         <script>
             var d = new Date();
             d.setTime(d.getTime() + (30*24*60*60*1000)); // 30 дней
-            document.cookie = "mirsud_user={login_val}; expires=" + d.toUTCString() + "; path=/;";
+            document.cookie = "mirsud_user=" + encodeURIComponent({login_safe}) + "; expires=" + d.toUTCString() + "; path=/; SameSite=Lax";
         </script>
     """
     components.html(js_code, height=0)
