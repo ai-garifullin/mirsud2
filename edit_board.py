@@ -37,11 +37,13 @@ if not st.session_state.get("admin_logged_in", False):
         submit_btn = st.form_submit_button("Войти", use_container_width=True, type="primary")
         if submit_btn:
             user_data = verify_user_credentials(login_inp, pass_inp)
-            if user_data:
+            if user_data and user_data.get("role") == "admin":
                 st.session_state["admin_logged_in"] = True
                 st.session_state["admin_user"] = user_data["login"]
                 st.success("Успешный вход!")
                 st.rerun()
+            elif user_data:
+                st.error("Доступ запрещен: требуются права администратора.")
             else:
                 st.error("Неверный логин или пароль")
     st.stop()

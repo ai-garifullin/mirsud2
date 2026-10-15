@@ -62,13 +62,17 @@ with st.sidebar:
                                 user_data = None
                                 st.error("Ошибка проверки учетных данных")
 
-                            if user_data:
+                            if user_data and user_data.get("role") == "admin":
                                 st.session_state["admin_fail_count"] = 0
                                 st.session_state["admin_lockout_until"] = 0
                                 st.session_state["admin_logged_in"] = True
                                 st.session_state["admin_user"] = user_data.get("login", login_inp)
                                 st.success("Успешный вход!")
                                 st.rerun()
+                            elif user_data:
+                                fails = st.session_state.get("admin_fail_count", 0) + 1
+                                st.session_state["admin_fail_count"] = fails
+                                st.error("Доступ запрещен: требуются права администратора.")
                             else:
                                 fails = st.session_state.get("admin_fail_count", 0) + 1
                                 st.session_state["admin_fail_count"] = fails

@@ -195,17 +195,35 @@ else:
         if st.query_params.get("admin") == "true":
             with st.expander("🔐 Режим редактирования", expanded=not st.session_state.get("admin_logged_in")):
                 if not st.session_state.get("admin_logged_in"):
-                    login_inp = st.text_input("Логин")
-                    pass_inp = st.text_input("Пароль", type="password")
-                    
-                    if st.button("Войти в админку"):
-                        # Используем вашу функцию из db_utils
-                        user_data = verify_user_credentials(login_inp, pass_inp)
-                        if user_data:
-                            st.session_state["admin_logged_in"] = True
-                            st.rerun()
-                        else:
-                            st.error("Неверные данные")
+                    now = time.time()
+                    lockout_until = st.session_state.get("form_admin_lockout_until", 0)
+                    if now < lockout_until:
+                        st.warning(f"⏳ Слишком много попыток входа. Подождите {int(lockout_until - now)} сек.")
+                    else:
+                        login_inp = st.text_input("Логин", key="form_admin_login")
+                        pass_inp = st.text_input("Пароль", type="password", key="form_admin_pass")
+                        
+                        if st.button("Войти в админку", key="form_admin_btn"):
+                            user_data = verify_user_credentials(login_inp, pass_inp)
+                            if user_data and user_data.get("role") == "admin":
+                                st.session_state["form_admin_fail_count"] = 0
+                                st.session_state["form_admin_lockout_until"] = 0
+                                st.session_state["admin_logged_in"] = True
+                                st.session_state["admin_user"] = user_data.get("login", login_inp)
+                                st.rerun()
+                            elif user_data:
+                                fails = st.session_state.get("form_admin_fail_count", 0) + 1
+                                st.session_state["form_admin_fail_count"] = fails
+                                st.error("Доступ запрещен: требуются права администратора.")
+                            else:
+                                fails = st.session_state.get("form_admin_fail_count", 0) + 1
+                                st.session_state["form_admin_fail_count"] = fails
+                                if fails >= 5:
+                                    st.session_state["form_admin_lockout_until"] = time.time() + 30
+                                    st.error("Превышен лимит попыток. Вход заблокирован на 30 секунд.")
+                                else:
+                                    time.sleep(1)
+                                    st.error(f"Неверные данные (осталось попыток: {5 - fails})")
                 else:
                     # Интерфейс правки
                     current_txt = load_main_info()
