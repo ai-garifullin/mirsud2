@@ -286,7 +286,7 @@ else:
                 st.stop()
 
             if uploaded_file:
-                is_valid, err_msg = validate_uploaded_file(uploaded_file.name, getattr(uploaded_file, 'size', None))
+                is_valid, err_msg = validate_uploaded_file(uploaded_file.name, uploaded_file)
                 if not is_valid:
                     st.error(f"❌ {err_msg}")
                     st.stop()

@@ -28,8 +28,22 @@ def sanitize_filename(filename: str) -> str:
     clean_name = re.sub(r'[^a-zA-Z0-9_\u0400-\u04FF\.\-]', '_', basename).strip('._')
     return clean_name or f"file_{int(time.time())}"
 
-def validate_uploaded_file(filename: str, size: int) -> tuple[bool, str]:
-    """Проверяет расширение и размер файла."""
+def validate_uploaded_file(filename: str, size_or_file) -> tuple[bool, str]:
+    """Проверяет расширение и размер файла (поддерживает как число байт, так и объект файла)."""
+    size = None
+    if isinstance(size_or_file, (int, float)):
+        size = int(size_or_file)
+    elif hasattr(size_or_file, 'getbuffer'):
+        try:
+            size = size_or_file.getbuffer().nbytes
+        except Exception:
+            pass
+    elif hasattr(size_or_file, 'size') and size_or_file.size is not None:
+        try:
+            size = int(size_or_file.size)
+        except Exception:
+            pass
+
     if size is not None and size > MAX_FILE_SIZE_BYTES:
         max_mb = MAX_FILE_SIZE_BYTES // (1024 * 1024)
         return False, f"Файл слишком большой (максимум {max_mb} МБ)"

@@ -279,7 +279,7 @@ def render_detail_view(request_id):
                 
                 # Если файл прикреплен, проверяем и сохраняем его локально
                 if internal_file:
-                    is_valid, err_msg = validate_uploaded_file(internal_file.name, getattr(internal_file, 'size', None))
+                    is_valid, err_msg = validate_uploaded_file(internal_file.name, internal_file)
                     if not is_valid:
                         st.error(f"❌ {err_msg}")
                         st.stop()
@@ -324,7 +324,7 @@ def render_detail_view(request_id):
                     
                     # Приоритет: локальный файл -> облачный файл
                     if uploaded_file:
-                        is_valid, err_msg = validate_uploaded_file(uploaded_file.name, getattr(uploaded_file, 'size', None))
+                        is_valid, err_msg = validate_uploaded_file(uploaded_file.name, uploaded_file)
                         if not is_valid:
                             st.error(f"❌ {err_msg}")
                             st.stop()
@@ -389,7 +389,7 @@ def render_detail_view(request_id):
                 
                 # 2. Логика сохранения файла
                 elif tg_file:
-                    is_valid, err_msg = validate_uploaded_file(tg_file.name, getattr(tg_file, 'size', None))
+                    is_valid, err_msg = validate_uploaded_file(tg_file.name, tg_file)
                     if not is_valid:
                         st.error(f"❌ {err_msg}")
                         st.stop()
