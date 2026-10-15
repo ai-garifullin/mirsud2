@@ -11,7 +11,7 @@ import re
 
 DB_HOST = os.getenv('DB_HOST', 'localhost')
 DB_USER = os.getenv('DB_USER', 'root')         
-DB_PASSWORD = os.getenv('DB_PASSWORD', 'vesna2321') 
+DB_PASSWORD = os.getenv('DB_PASSWORD', '') 
 DB_NAME = os.getenv('DB_NAME', 'service_desk_db')   
 
 # --- БЕЗОПАСНОСТЬ ЗАГРУЗКИ ФАЙЛОВ ---
