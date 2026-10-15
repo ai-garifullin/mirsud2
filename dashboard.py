@@ -2,6 +2,9 @@ import streamlit as st
 import json
 import os
 import time
+import hmac
+import hashlib
+from urllib.parse import unquote
 import streamlit.components.v1 as components
 from dotenv import load_dotenv
 
@@ -12,6 +15,39 @@ from views import render_detail_view
 # --- 1. ЗАГРУЗКА НАСТРОЕК ---
 load_dotenv()
 
+SESSION_SECRET_KEY = os.getenv("SESSION_SECRET_KEY", "mirsud_crm_secret_session_key_2026")
+
+def sign_auth_cookie(login_val: str) -> str:
+    """Формирует криптографически подписанную строку сессии: login:timestamp:signature."""
+    timestamp = str(int(time.time()))
+    payload = f"{login_val}:{timestamp}"
+    signature = hmac.new(SESSION_SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return f"{payload}:{signature}"
+
+def verify_auth_cookie(cookie_val: str, max_age_days: int = 30) -> str | None:
+    """Проверяет подпись HMAC и срок действия куки. Возвращает login при успехе, иначе None."""
+    if not cookie_val:
+        return None
+    cleaned = cookie_val.strip('"\t\r\n ')
+    parts = cleaned.split(":")
+    if len(parts) != 3:
+        return None
+    login, ts_str, signature = parts
+    try:
+        ts = int(ts_str)
+    except ValueError:
+        return None
+
+    now = time.time()
+    if now - ts > max_age_days * 86400 or ts > now + 300:
+        return None
+
+    payload = f"{login}:{ts_str}"
+    expected_sig = hmac.new(SESSION_SECRET_KEY.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    if hmac.compare_digest(signature, expected_sig):
+        return login
+    return None
+
 if "logout_submitted" not in st.session_state:
     st.session_state["logout_submitted"] = False
 
@@ -20,23 +56,15 @@ st.set_page_config(page_title="Service Desk Mirsud", layout="wide")
 if "logged_in" not in st.session_state:
     st.session_state["logged_in"] = False
 
-# Старый костыль для ios
-# """ 
-#     magic_keys_raw = os.getenv('MAGIC_KEYS_JSON', '{}')
-# try:
-#     MAGIC_KEYS = json.loads(magic_keys_raw)
-# except json.JSONDecodeError:
-#     MAGIC_KEYS = {}
-# """
-
 # --- 2. УПРАВЛЕНИЕ КУКИ ЧЕРЕЗ JS (Только запись и удаление) ---
 def set_auth_cookie(login_val):
-    login_safe = json.dumps(str(login_val))
+    signed_token = sign_auth_cookie(str(login_val))
+    token_safe = json.dumps(signed_token)
     js_code = f"""
         <script>
             var d = new Date();
             d.setTime(d.getTime() + (30*24*60*60*1000)); // 30 дней
-            document.cookie = "mirsud_user=" + encodeURIComponent({login_safe}) + "; expires=" + d.toUTCString() + "; path=/; SameSite=Lax";
+            document.cookie = "mirsud_user=" + encodeURIComponent({token_safe}) + "; expires=" + d.toUTCString() + "; path=/; SameSite=Lax";
         </script>
     """
     components.html(js_code, height=0)
@@ -59,16 +87,19 @@ def check_login():
     if st.session_state.get("logged_in"):
         return True
 
-    # 3. Нативное чтение куки (только если не было команды на выход)
+    # 3. Нативное чтение куки с проверкой криптографической подписи HMAC
     if hasattr(st, "context") and hasattr(st.context, "cookies"):
-        saved_login = st.context.cookies.get("mirsud_user")
-        if saved_login:
-            user_db = get_user_by_login(saved_login)
-            if user_db:
-                st.session_state["logged_in"] = True
-                st.session_state["user_login"] = user_db['login']
-                st.session_state["user_role"] = user_db['role']
-                return True
+        raw_cookie = st.context.cookies.get("mirsud_user")
+        if raw_cookie:
+            decoded_cookie = unquote(str(raw_cookie))
+            valid_login = verify_auth_cookie(decoded_cookie)
+            if valid_login:
+                user_db = get_user_by_login(valid_login)
+                if user_db:
+                    st.session_state["logged_in"] = True
+                    st.session_state["user_login"] = user_db['login']
+                    st.session_state["user_role"] = user_db['role']
+                    return True
             
     # Старый костыль для ios
     # """В. Обработка Magic Link
