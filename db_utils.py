@@ -7,12 +7,36 @@ import dotenv
 dotenv.load_dotenv()
 import time
 import hashlib
-
+import re
 
 DB_HOST = os.getenv('DB_HOST', 'localhost')
 DB_USER = os.getenv('DB_USER', 'root')         
 DB_PASSWORD = os.getenv('DB_PASSWORD', 'vesna2321') 
 DB_NAME = os.getenv('DB_NAME', 'service_desk_db')   
+
+# --- БЕЗОПАСНОСТЬ ЗАГРУЗКИ ФАЙЛОВ ---
+ALLOWED_EXTENSIONS = {
+    'png', 'jpg', 'jpeg', 'webp', 'gif',
+    'pdf', 'docx', 'doc', 'xlsx', 'xls', 'txt', 'csv',
+    'zip', 'rar', '7z'
+}
+MAX_FILE_SIZE_BYTES = 25 * 1024 * 1024  # 25 MB
+
+def sanitize_filename(filename: str) -> str:
+    """Очищает имя файла от путей, спецсимволов и оставляет безопасное имя."""
+    basename = os.path.basename(filename or '')
+    clean_name = re.sub(r'[^a-zA-Z0-9_\u0400-\u04FF\.\-]', '_', basename).strip('._')
+    return clean_name or f"file_{int(time.time())}"
+
+def validate_uploaded_file(filename: str, size: int) -> tuple[bool, str]:
+    """Проверяет расширение и размер файла."""
+    if size is not None and size > MAX_FILE_SIZE_BYTES:
+        max_mb = MAX_FILE_SIZE_BYTES // (1024 * 1024)
+        return False, f"Файл слишком большой (максимум {max_mb} МБ)"
+    ext = (filename or '').lower().rsplit('.', 1)[-1] if '.' in (filename or '') else ''
+    if ext not in ALLOWED_EXTENSIONS:
+        return False, f"Недопустимый тип файла '.{ext}'. Разрешены: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+    return True, ""
 
 # ------- ФУНКЦИИ РАБОТЫ С ДАННЫМИ ---
 

@@ -269,7 +269,7 @@ def render_detail_view(request_id):
                 
                 # Добавляем загрузку файла для внутреннего пользования
                 internal_file = st.file_uploader("Прикрепить внутренний документ/фото:", 
-                                                type=['png', 'jpg', 'jpeg', 'pdf', 'zip'], 
+                                                type=sorted(list(ALLOWED_EXTENSIONS)), 
                                                 key="internal_file_upload")
                 
                 note_btn = st.form_submit_button("💾 Сохранить заметку")
@@ -277,10 +277,15 @@ def render_detail_view(request_id):
             if note_btn and (internal_text or internal_file):
                 file_save_path = None
                 
-                # Если файл прикреплен, сохраняем его локально
+                # Если файл прикреплен, проверяем и сохраняем его локально
                 if internal_file:
+                    is_valid, err_msg = validate_uploaded_file(internal_file.name, getattr(internal_file, 'size', None))
+                    if not is_valid:
+                        st.error(f"❌ {err_msg}")
+                        st.stop()
                     os.makedirs("attachments", exist_ok=True)
-                    file_save_path = os.path.join("attachments", f"internal_{int(time.time())}_{internal_file.name}")
+                    safe_name = sanitize_filename(internal_file.name)
+                    file_save_path = os.path.join("attachments", f"internal_{int(time.time())}_{safe_name}")
                     with open(file_save_path, "wb") as f:
                         f.write(internal_file.getbuffer())
 
@@ -305,7 +310,7 @@ def render_detail_view(request_id):
                 )
                 
                 uploaded_file = st.file_uploader("ИЛИ прикрепить файл с ПК:", 
-                                                type=None, # Разрешаем все типы
+                                                type=sorted(list(ALLOWED_EXTENSIONS)),
                                                 disabled=is_disabled, key="file_reply")
                 
                 send_btn = st.form_submit_button("📨 Отправить почту", disabled=is_disabled)
@@ -319,14 +324,19 @@ def render_detail_view(request_id):
                     
                     # Приоритет: локальный файл -> облачный файл
                     if uploaded_file:
-                        file_save_path = os.path.join("attachments", f"{int(time.time())}_{uploaded_file.name}")
+                        is_valid, err_msg = validate_uploaded_file(uploaded_file.name, getattr(uploaded_file, 'size', None))
+                        if not is_valid:
+                            st.error(f"❌ {err_msg}")
+                            st.stop()
+                        safe_name = sanitize_filename(uploaded_file.name)
+                        file_save_path = os.path.join("attachments", f"{int(time.time())}_{safe_name}")
                         with open(file_save_path, "wb") as f:
                             f.write(uploaded_file.getbuffer())
                     
                     elif selected_cloud_file_reply != "Не выбрано":
                         # Логика скачивания с облака
                         download_url = all_cloud_resources[selected_cloud_file_reply]
-                        file_name_clean = selected_cloud_file_reply.split('/')[-1]
+                        file_name_clean = sanitize_filename(selected_cloud_file_reply.split('/')[-1])
                         file_save_path = os.path.join("attachments", f"{int(time.time())}_{file_name_clean}")
                         
                         with st.spinner("Скачиваю файл из облака..."):
@@ -357,16 +367,15 @@ def render_detail_view(request_id):
                 st.write("📱 **Отправить сообщение в Telegram**")
                 tg_text = st.text_area("Текст сообщения:", height=100, key="tg_reply_text_v2", disabled=is_disabled)
                 
-                # Выпадающий список теперь содержит ВСЕ файлы (docx, rar, zip и т.д.)
+                # Выпадающий список документов и файлов
                 selected_resource = st.selectbox(
-                    "📁 Выбрать из облака (любой формат):", 
+                    "📁 Выбрать из облака:", 
                     options=["Не выбрано"] + list(all_cloud_resources.keys()), disabled=is_disabled,
-                    help="Здесь отображаются все документы, архивы и подпапки"
+                    help="Здесь отображаются все документы, архивы и файлы"
                 )
                 
-                # Убрали ограничение по type, чтобы разрешить docx/rar при ручной загрузке
                 tg_file = st.file_uploader("ИЛИ загрузить файл с ПК:", 
-                                        type=None, 
+                                        type=sorted(list(ALLOWED_EXTENSIONS)), 
                                         key="tg_file_upload_v2", disabled=is_disabled)
                 
                 send_tg_btn = st.form_submit_button("🚀 Отправить", disabled=is_disabled)
@@ -380,8 +389,13 @@ def render_detail_view(request_id):
                 
                 # 2. Логика сохранения файла
                 elif tg_file:
+                    is_valid, err_msg = validate_uploaded_file(tg_file.name, getattr(tg_file, 'size', None))
+                    if not is_valid:
+                        st.error(f"❌ {err_msg}")
+                        st.stop()
                     os.makedirs("attachments", exist_ok=True)
-                    file_save_path = os.path.join("attachments", f"tg_{int(time.time())}_{tg_file.name}")
+                    safe_name = sanitize_filename(tg_file.name)
+                    file_save_path = os.path.join("attachments", f"tg_{int(time.time())}_{safe_name}")
                     with open(file_save_path, "wb") as f:
                         f.write(tg_file.getbuffer())
                 
@@ -389,9 +403,10 @@ def render_detail_view(request_id):
                     with st.spinner("Скачиваю файл из облака..."):
                         download_url = all_cloud_resources[selected_resource]
                         os.makedirs("attachments", exist_ok=True)
-                        file_save_path = os.path.join("attachments", selected_resource)
+                        file_name_clean = sanitize_filename(selected_resource.split('/')[-1])
+                        file_save_path = os.path.join("attachments", f"cloud_{int(time.time())}_{file_name_clean}")
                         
-                        # Скачиваем любой файл (docx, rar и т.д.) как байты
+                        # Скачиваем файл как байты
                         r = requests.get(download_url)
                         if r.status_code == 200:
                             with open(file_save_path, "wb") as f:

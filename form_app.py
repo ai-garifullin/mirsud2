@@ -1,7 +1,10 @@
 import streamlit as st
 import os
 import time
-from db_utils import get_lookup_options, get_db_connection, add_request_message, verify_user_credentials
+from db_utils import (
+    get_lookup_options, get_db_connection, add_request_message,
+    verify_user_credentials, sanitize_filename, validate_uploaded_file, ALLOWED_EXTENSIONS
+)
 from dotenv import load_dotenv
 import json
 load_dotenv()
@@ -107,7 +110,7 @@ def find_section_id(district_id, section_number):
     conn.close()
     return result[0] if result else None
 
-def create_request(data):
+def create_request(data, uploaded_file=None):
     """Создает заявку и возвращает ее ID."""
     conn = get_db_connection()
     if not conn: return None
@@ -127,13 +130,14 @@ def create_request(data):
         conn.commit()
 
         if uploaded_file and request_id:
+            safe_name = sanitize_filename(uploaded_file.name)
             os.makedirs("attachments", exist_ok=True)
-            file_path = os.path.join("attachments", f"web_{int(time.time())}_{uploaded_file.name}")
+            file_path = os.path.join("attachments", f"web_{int(time.time())}_{safe_name}")
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
             
             # Записываем файл в таблицу сообщений
-            add_request_message(conn, request_id, 'Client', "Вложение к новой заявке", 'Portal', file_path)
+            add_request_message(request_id, 'Client', "Вложение к новой заявке", 'Portal', file_path)
         return request_id
     except Exception as e:
         print(f"Ошибка создания заявки: {e}")
@@ -252,13 +256,16 @@ else:
             description = st.text_area("Подробное описание проблемы:", height=150, key="f_desc")
             
             uploaded_file = st.file_uploader("Прикрепить скриншот или документ (необязательно):", 
-                                            type=['png', 'jpg', 'jpeg', 'pdf', 'zip'], 
+                                            type=sorted(list(ALLOWED_EXTENSIONS)), 
                                             key="f_file")
             submit_button = st.form_submit_button("🚀 Отправить заявку", type="primary")
 
         if submit_button:
             if uploaded_file:
-                st.write(f"Файл получен: {uploaded_file.name}, размер: {uploaded_file.size}")
+                is_valid, err_msg = validate_uploaded_file(uploaded_file.name, getattr(uploaded_file, 'size', None))
+                if not is_valid:
+                    st.error(f"❌ {err_msg}")
+                    st.stop()
             if not all([user_fullname, phone, selected_district_name, section_number, selected_type_name, description]):
                 st.error("❌ Пожалуйста, заполните все поля.")
             else:
@@ -277,7 +284,7 @@ else:
                         'description': description
                     }
                     
-                    new_id = create_request(request_data)
+                    new_id = create_request(request_data, uploaded_file)
                     
                     if new_id:
                         st.success(f"✅ Заявка №{new_id} успешно зарегистрирована!")

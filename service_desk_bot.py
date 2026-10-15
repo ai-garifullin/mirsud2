@@ -3,7 +3,7 @@ import os
 import dotenv
 import time
 import threading
-from db_utils import get_db_connection
+from db_utils import get_db_connection, validate_uploaded_file, sanitize_filename, ALLOWED_EXTENSIONS
 
 dotenv.load_dotenv()
 bot = telebot.TeleBot(os.getenv('BOT_TOKEN'))
@@ -122,26 +122,31 @@ def process_description(message):
     # Обработка вложения
     if message.content_type in ['photo', 'document']:
         try:
-            os.makedirs("attachments", exist_ok=True)
-            
             if message.content_type == 'photo':
                 # Берем самое качественное фото из списка
                 file_id = message.photo[-1].file_id
                 ext = ".jpg"
             else:
+                raw_name = getattr(message.document, 'file_name', '') or 'file'
+                raw_size = getattr(message.document, 'file_size', 0)
+                is_valid, err_msg = validate_uploaded_file(raw_name, raw_size)
+                if not is_valid:
+                    bot.send_message(chat_id, f"⚠️ {err_msg}")
+                    return
+                ext = os.path.splitext(raw_name)[1].lower()
                 file_id = message.document.file_id
-                ext = os.path.splitext(message.document.file_name)[1]
 
             file_info = bot.get_file(file_id)
             downloaded_file = bot.download_file(file_info.file_path)
             
+            os.makedirs("attachments", exist_ok=True)
             filename = f"tg_{int(time.time())}_{chat_id}{ext}"
             file_save_path = os.path.join("attachments", filename)
 
             with open(file_save_path, 'wb') as f:
                 f.write(downloaded_file)
         except Exception as e:
-            bot.send_message(chat_id, f"⚠️ Ошибка загрузки файла: {e}")
+            bot.send_message(chat_id, "⚠️ Ошибка загрузки файла.")
 
     if not input_text and not file_save_path:
         bot.send_message(chat_id, "Пожалуйста, напишите описание или пришлите файл.")
@@ -219,18 +224,31 @@ def handle_all_steps(message):
         file_path = None
         # Сохранение файла, если прислали
         if message.content_type in ['photo', 'document']:
-            # Получаем file_id
-            file_id = message.photo[-1].file_id if message.photo else message.document.file_id
-            file_info = bot.get_file(file_id)
-            downloaded_file = bot.download_file(file_info.file_path)
-            
-            os.makedirs("attachments", exist_ok=True)
-            file_ext = file_info.file_path.split('.')[-1]
-            file_name = f"cli_{int(time.time())}.{file_ext}"
-            file_path = os.path.join("attachments", file_name)
-            
-            with open(file_path, 'wb') as f:
-                f.write(downloaded_file)
+            try:
+                if message.photo:
+                    file_id = message.photo[-1].file_id
+                    file_ext = "jpg"
+                else:
+                    raw_name = getattr(message.document, 'file_name', '') or 'file'
+                    raw_size = getattr(message.document, 'file_size', 0)
+                    is_valid, err_msg = validate_uploaded_file(raw_name, raw_size)
+                    if not is_valid:
+                        bot.reply_to(message, f"⚠️ {err_msg}")
+                        return
+                    file_ext = raw_name.rsplit('.', 1)[-1].lower() if '.' in raw_name else "bin"
+                    file_id = message.document.file_id
+
+                file_info = bot.get_file(file_id)
+                downloaded_file = bot.download_file(file_info.file_path)
+                
+                os.makedirs("attachments", exist_ok=True)
+                file_name = f"cli_{int(time.time())}_{chat_id}.{file_ext}"
+                file_path = os.path.join("attachments", file_name)
+                
+                with open(file_path, 'wb') as f:
+                    f.write(downloaded_file)
+            except Exception as e:
+                bot.reply_to(message, "⚠️ Ошибка сохранения вложения.")
         
         text = message.caption or message.text or "[Файл]"
         
