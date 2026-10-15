@@ -240,8 +240,21 @@ def fetch_request_messages(request_id):
     finally:
         conn.close()
 
+ALLOWED_LOOKUPS = {
+    'executor': {'Executor_ID', 'Full_Name'},
+    'request_type': {'Type_ID', 'Type_Name'},
+    'district': {'District_ID', 'District_Name'},
+    'locations': {'Location_ID', 'Address_Name'},
+    'court_section': {'Section_ID', 'Section_Number'}
+}
+
 @st.cache_data
 def get_lookup_options(table, key_col, val_col):
+    if table not in ALLOWED_LOOKUPS:
+        raise ValueError(f"Недопустимая таблица: {table}")
+    if key_col not in ALLOWED_LOOKUPS[table] or val_col not in ALLOWED_LOOKUPS[table]:
+        raise ValueError(f"Недопустимые колонки для таблицы {table}: {key_col}, {val_col}")
+    
     conn = get_db_connection()
     if not conn: return {}
     cols = list(set([key_col, val_col]))
@@ -255,7 +268,14 @@ def clean_value(val):
     if isinstance(val, float) and math.isnan(val): return None
     return val
 
+ALLOWED_REQUEST_COLUMNS = {
+    'Status', 'Assigned_Executor_ID', 'Request_Type_ID',
+    'Service_Type', 'Description', 'Result', 'Time_Spent', 'Closed_At'
+}
+
 def update_db_field(request_id, db_column, new_value):
+    if db_column not in ALLOWED_REQUEST_COLUMNS:
+        raise ValueError(f"Недопустимое имя колонки: {db_column}")
     conn = get_db_connection()
     if not conn: return
     cursor = conn.cursor()
@@ -264,7 +284,11 @@ def update_db_field(request_id, db_column, new_value):
     conn.commit()
     conn.close()
 
+ALLOWED_DEPARTURE_COLUMNS = {'Mileage', 'Fuel_Price', 'Fuel_Consumption'}
+
 def update_fuel_record(request_id, col_name, value):
+    if col_name not in ALLOWED_DEPARTURE_COLUMNS:
+        raise ValueError(f"Недопустимое имя колонки: {col_name}")
     conn = get_db_connection()
     if not conn: return
     cursor = conn.cursor()
