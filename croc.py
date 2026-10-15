@@ -102,8 +102,8 @@ WScript.Quit"""
                 else:
                     st.error("Не удалось найти IP или Пароль для этого участка. Проверьте содержимое CSV.")
 
-        except Exception as e:
-            st.error(f"Ошибка: {e}")
+        except Exception:
+            st.error("Ошибка обработки файла. Проверьте формат CSV.")
 
 if __name__ == "__main__":
     croc()

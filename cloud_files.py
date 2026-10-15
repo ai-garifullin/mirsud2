@@ -80,9 +80,9 @@ def cloud_files_page():
                 else:
                     try:
                         user_data = verify_user_credentials(login_inp, pass_inp)
-                    except Exception as e:
+                    except Exception:
                         user_data = None
-                        st.error(f"Ошибка проверки данных: {e}")
+                        st.error("Ошибка проверки данных. Попробуйте позже.")
 
                     if user_data:
                         st.session_state["cloud_files_logged_in"] = True
@@ -154,8 +154,8 @@ def cloud_files_page():
     try:
         with st.spinner("Загрузка содержимого папки..."):
             data = fetch_disk_resources(YANDEX_DISK_PUBLIC_URL, st.session_state.cloud_current_path)
-    except Exception as e:
-        st.error(f"Не удалось получить данные с Яндекс.Диска: {e}")
+    except Exception:
+        st.error("Не удалось получить данные с хранилища. Попробуйте обновить страницу.")
         if st.button("⬅️ Вернуться в корень"):
             st.session_state.cloud_current_path = "/"
             st.session_state.preview_file = None
@@ -304,7 +304,7 @@ def cloud_files_page():
                 elif ext in ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg']:
                     st.image(file_bytes, caption=f_name, use_container_width=True)
                 
-            except Exception as e:
-                st.error(f"Не удалось отобразить файл: {e}")
+            except Exception:
+                st.error("Не удалось отобразить файл.")
 
 cloud_files_page()
