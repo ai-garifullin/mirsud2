@@ -90,15 +90,25 @@ def check_login():
     #         st.rerun()"""
 
     # Г. Форма входа
+    now = time.time()
+    lockout_until = st.session_state.get("login_lockout_until", 0)
+    if now < lockout_until:
+        wait_seconds = int(lockout_until - now)
+        st.warning(f"⏳ Слишком много неудачных попыток входа. Пожалуйста, подождите {wait_seconds} сек.")
+        return False
+
     with st.form("login_form"):
         st.header("Вход в Service Desk")
         login_input = st.text_input("Логин")
         password_input = st.text_input("Пароль", type="password")
         
         if st.form_submit_button("Войти"):
+            attempts = st.session_state.get("login_fail_count", 0)
             user_data = verify_user_credentials(login_input, password_input)
             
             if user_data:
+                st.session_state["login_fail_count"] = 0
+                st.session_state["login_lockout_until"] = 0
                 st.session_state["logged_in"] = True
                 st.session_state["user_login"] = user_data['login']
                 st.session_state["user_role"] = user_data['role']
@@ -109,7 +119,14 @@ def check_login():
                 time.sleep(0.5) # Ждем запись куки
                 st.rerun()
             else:
-                st.error("Неверный логин или пароль")
+                attempts += 1
+                st.session_state["login_fail_count"] = attempts
+                if attempts >= 5:
+                    st.session_state["login_lockout_until"] = time.time() + 30
+                    st.error("Превышен лимит попыток. Вход заблокирован на 30 секунд.")
+                else:
+                    time.sleep(1)
+                    st.error(f"Неверный логин или пароль (осталось попыток: {5 - attempts})")
     return False
 
 # --- 4. ГЛАВНЫЙ ЦИКЛ ПРИЛОЖЕНИЯ ---

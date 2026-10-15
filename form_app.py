@@ -261,6 +261,11 @@ else:
             submit_button = st.form_submit_button("🚀 Отправить заявку", type="primary")
 
         if submit_button:
+            last_submit = st.session_state.get("last_ticket_submit_time", 0)
+            if time.time() - last_submit < 5:
+                st.warning("⏳ Пожалуйста, подождите несколько секунд перед повторной отправкой.")
+                st.stop()
+
             if uploaded_file:
                 is_valid, err_msg = validate_uploaded_file(uploaded_file.name, getattr(uploaded_file, 'size', None))
                 if not is_valid:
@@ -287,6 +292,7 @@ else:
                     new_id = create_request(request_data, uploaded_file)
                     
                     if new_id:
+                        st.session_state["last_ticket_submit_time"] = time.time()
                         st.success(f"✅ Заявка №{new_id} успешно зарегистрирована!")
                         st.balloons()
                     else:
