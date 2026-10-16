@@ -72,11 +72,18 @@ services:
     restart: always
     ports:
       - "8505:8505"
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=mysqldb
+      - TZ=Europe/Moscow
     networks:
       - mynet
     volumes:
       - ./:/app
       - ./attachments:/app/attachments
+    depends_on:
+      - db
     command: streamlit run admin_panel.py --server.port=8505 --server.address=0.0.0.0
 
   bot:

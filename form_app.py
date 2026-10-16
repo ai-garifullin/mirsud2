@@ -205,7 +205,8 @@ else:
                         
                         if st.button("Войти в админку", key="form_admin_btn"):
                             user_data = verify_user_credentials(login_inp, pass_inp)
-                            if user_data and user_data.get("role") == "admin":
+                            if user_data and user_data.get("role") in ["admin", "engineer_bd", "Инженер_БД"]:
+
                                 st.session_state["form_admin_fail_count"] = 0
                                 st.session_state["form_admin_lockout_until"] = 0
                                 st.session_state["admin_logged_in"] = True

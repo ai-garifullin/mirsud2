@@ -79,8 +79,9 @@ def render_detail_view(request_id):
         st.rerun()
 
     # --- ЛОГИКА БЛОКИРОВКИ ---
-    is_admin = st.session_state.get("user_role") == 'admin'
+    is_admin = st.session_state.get("user_role") in ['admin', 'engineer_bd', 'Инженер_БД']
     is_finished = data['Status'] in ['✅ Выполнена', 'Дубль']
+
     is_disabled = is_finished or not is_admin
     
     current_service_type = st.session_state.get('st_service', data.get('Service_Type'))

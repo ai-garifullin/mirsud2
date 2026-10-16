@@ -115,28 +115,16 @@ def analyze_kb(kb: dict[str, Any]) -> dict[str, Any]:
 
 
 # --- ПРОВЕРКА АВТОРИЗАЦИИ ---
-if not st.session_state.get("admin_logged_in", False):
-    st.title("🔐 Редактирование базы знаний")
-    st.info("Для управления экспертной системой необходимо войти с правами администратора.")
-    with st.form("kb_auth_form"):
-        login_inp = st.text_input("Логин")
-        pass_inp = st.text_input("Пароль", type="password")
-        if st.form_submit_button("Войти", use_container_width=True, type="primary"):
-            user_data = verify_user_credentials(login_inp, pass_inp)
-            if user_data and user_data.get("role") == "admin":
-                st.session_state["admin_logged_in"] = True
-                st.session_state["admin_user"] = user_data["login"]
-                st.success("Успешный вход!")
-                st.rerun()
-            elif user_data:
-                st.error("Доступ запрещен: требуются права администратора.")
-            else:
-                st.error("Неверный логин или пароль")
+st.title("🧠 База знаний экспертной системы")
+
+if not st.session_state.get("admin_logged_in", False) or st.session_state.get("admin_role") not in ["engineer_bd", "Инженер_БД"]:
+    st.warning("⚠️ Доступ к этому разделу разрешен только Инженеру БД. Пожалуйста, выполните вход через форму на боковой панели.")
     st.stop()
 
 
+
 # --- ОСНОВНОЙ ИНТЕРФЕЙС РЕДАКТОРА ---
-st.title("🧠 База знаний экспертной системы")
+
 from github_sync import get_github_config
 gh_cfg = get_github_config()
 if gh_cfg["token"]:

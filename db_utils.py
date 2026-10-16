@@ -82,16 +82,21 @@ def get_db_connection():
             
         except mysql.connector.Error as e:
             # Если не получилось, ждем и пробуем снова
-            print(f"⚠️ Ошибка подключения к БД (попытка {i+1}/{attempts}): {e}")
-            print("Жду 5 секунд перед повторной попыткой...")
-            time.sleep(5)
+            try:
+                print(f"⚠️ Ошибка подключения к БД (попытка {i+1}/{attempts}): {e}")
+            except Exception:
+                print(f"[!] Ошибка подключения к БД (попытка {i+1}/{attempts}): {e}")
+            time.sleep(1)
             
     # Если все попытки провалились
-    st.error("НЕ УДАЛОСЬ ПОДКЛЮЧИТЬСЯ К БАЗЕ ДАННЫХ ПОСЛЕ НЕСКОЛЬКИХ ПОПЫТОК.")
+    try:
+        st.error("НЕ УДАЛОСЬ ПОДКЛЮЧИТЬСЯ К БАЗЕ ДАННЫХ ПОСЛЕ НЕСКОЛЬКИХ ПОПЫТОК.")
+    except Exception:
+        pass
     return None
 
 
-# --- ФУНКЦИИ АВТОРИЗАЦИИ ---
+# --- ФУНКЦИИ АВТОРИЗАЦИИ И УПРАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯМИ ---
 def get_user_by_login(login):
     """Получает данные пользователя по логину."""
     conn = get_db_connection()
@@ -117,6 +122,107 @@ def get_user_role(login):
     """Получает только роль пользователя (для проверки сессии)."""
     user_data = get_user_by_login(login)
     return user_data['role'] if user_data else None
+
+def get_all_system_users():
+    """Получает всех пользователей системы для админ-панели."""
+    conn = get_db_connection()
+    if conn:
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT user_id, login, role, telegram_id FROM system_users ORDER BY user_id ASC")
+            return cursor.fetchall() or []
+        finally:
+            conn.close()
+    return []
+
+def create_system_user(login, password_hash, role, telegram_id=None):
+    """Создает нового пользователя в system_users."""
+    conn = get_db_connection()
+    if not conn:
+        return False, "Не удалось подключиться к базе данных"
+    try:
+        cursor = conn.cursor()
+        sql = "INSERT INTO system_users (login, password_hash, role, telegram_id) VALUES (%s, %s, %s, %s)"
+        cursor.execute(sql, (login, password_hash, role, telegram_id if telegram_id else None))
+        conn.commit()
+        return True, f"Пользователь '{login}' успешно создан"
+    except mysql.connector.Error as err:
+        return False, f"Ошибка базы данных: {err}"
+    finally:
+        conn.close()
+
+def update_system_user_role_and_tg(user_id, role, telegram_id=None):
+    """Обновляет роль и telegram_id пользователя."""
+    conn = get_db_connection()
+    if not conn:
+        return False, "Не удалось подключиться к базе данных"
+    try:
+        cursor = conn.cursor()
+        sql = "UPDATE system_users SET role = %s, telegram_id = %s WHERE user_id = %s"
+        cursor.execute(sql, (role, telegram_id if telegram_id else None, int(user_id)))
+        conn.commit()
+        return True, "Данные пользователя успешно обновлены"
+    except mysql.connector.Error as err:
+        return False, f"Ошибка базы данных: {err}"
+    finally:
+        conn.close()
+
+def update_system_user_password(user_id, password_hash):
+    """Обновляет хэш пароля пользователя."""
+    conn = get_db_connection()
+    if not conn:
+        return False, "Не удалось подключиться к базе данных"
+    try:
+        cursor = conn.cursor()
+        sql = "UPDATE system_users SET password_hash = %s WHERE user_id = %s"
+        cursor.execute(sql, (password_hash, int(user_id)))
+        conn.commit()
+        return True, "Пароль успешно изменен"
+    except mysql.connector.Error as err:
+        return False, f"Ошибка базы данных: {err}"
+    finally:
+        conn.close()
+
+def delete_system_user(user_id):
+    """Удаляет пользователя из system_users."""
+    conn = get_db_connection()
+    if not conn:
+        return False, "Не удалось подключиться к базе данных"
+    try:
+        cursor = conn.cursor()
+        sql = "DELETE FROM system_users WHERE user_id = %s"
+        cursor.execute(sql, (int(user_id),))
+        conn.commit()
+        return True, "Пользователь успешно удален"
+    except mysql.connector.Error as err:
+        return False, f"Ошибка базы данных: {err}"
+    finally:
+        conn.close()
+
+def get_recent_user_logs(limit=50):
+    """Получает последние записи аудита, связанные с пользователями."""
+    conn = get_db_connection()
+    if not conn:
+        return []
+    try:
+        cursor = conn.cursor(dictionary=True)
+        sql = """
+            SELECT log_id, timestamp, user_login, action_type, details 
+            FROM action_log 
+            WHERE action_type LIKE 'USER_%' OR action_type LIKE 'AUTH_%'
+            ORDER BY log_id DESC 
+            LIMIT %s
+        """
+        cursor.execute(sql, (int(limit),))
+        rows = cursor.fetchall()
+        if not rows:
+            cursor.execute("SELECT log_id, timestamp, user_login, action_type, details FROM action_log ORDER BY log_id DESC LIMIT %s", (int(limit),))
+            rows = cursor.fetchall()
+        return rows or []
+    except Exception:
+        return []
+    finally:
+        conn.close()
 
 # --- ФУНКЦИИ ДЛЯ MAIN_VIEW.PY ---
 def get_all_locations():

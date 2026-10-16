@@ -26,29 +26,13 @@ def save_main_info(new_text):
         st.error(f"Ошибка записи: {e}")
         return False
 
-from db_utils import verify_user_credentials
+st.title("✏️ Редактирование информационной доски")
 
-if not st.session_state.get("admin_logged_in", False):
-    st.title("🔐 Редактирование информационной доски")
-    st.info("Для редактирования объявлений необходимо войти с правами администратора.")
-    with st.form("edit_board_auth_form"):
-        login_inp = st.text_input("Логин")
-        pass_inp = st.text_input("Пароль", type="password")
-        submit_btn = st.form_submit_button("Войти", use_container_width=True, type="primary")
-        if submit_btn:
-            user_data = verify_user_credentials(login_inp, pass_inp)
-            if user_data and user_data.get("role") == "admin":
-                st.session_state["admin_logged_in"] = True
-                st.session_state["admin_user"] = user_data["login"]
-                st.success("Успешный вход!")
-                st.rerun()
-            elif user_data:
-                st.error("Доступ запрещен: требуются права администратора.")
-            else:
-                st.error("Неверный логин или пароль")
+if not st.session_state.get("admin_logged_in", False) or st.session_state.get("admin_role") not in ["engineer_bd", "Инженер_БД"]:
+    st.warning("⚠️ Доступ к этому разделу разрешен только Инженеру БД. Пожалуйста, выполните вход через форму на боковой панели.")
     st.stop()
 
-st.title("✏️ Редактирование информационной доски")
+
 from github_sync import get_github_config
 gh_cfg = get_github_config()
 if gh_cfg["token"]:

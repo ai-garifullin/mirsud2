@@ -67,34 +67,8 @@ def cloud_files_page():
     is_authenticated = st.session_state.get("admin_logged_in", False) or st.session_state.get("cloud_files_logged_in", False)
 
     if not is_authenticated:
-        st.title("🔐 Авторизация")
-        st.info("Для просмотра файлов из общего облака необходимо войти в систему.")
-        
-        with st.form("cloud_auth_form"):
-            login_inp = st.text_input("Логин")
-            pass_inp = st.text_input("Пароль", type="password")
-            submit_btn = st.form_submit_button("Войти", use_container_width=True, type="primary")
-
-            if submit_btn:
-                if not login_inp or not pass_inp:
-                    st.warning("Пожалуйста, введите логин и пароль.")
-                else:
-                    try:
-                        user_data = verify_user_credentials(login_inp, pass_inp)
-                    except Exception:
-                        user_data = None
-                        st.error("Ошибка проверки данных. Попробуйте позже.")
-
-                    if user_data:
-                        st.session_state["cloud_files_logged_in"] = True
-                        st.session_state["cloud_user"] = user_data
-                        if user_data.get("role") == "admin":
-                            st.session_state["admin_logged_in"] = True
-                            st.session_state["admin_user"] = user_data["login"]
-                        st.success("Успешный вход!")
-                        st.rerun()
-                    else:
-                        st.error("Неверный логин или пароль")
+        st.title("☁️ Облачные файлы")
+        st.warning("⚠️ Для доступа к облачным файлам необходимо войти в систему. Пожалуйста, выполните вход через форму на боковой панели.")
         return
 
     st.title("☁️ Облачные файлы")
@@ -108,7 +82,7 @@ def cloud_files_page():
 
     # Верхняя панель: навигация, кнопка выхода и обновление
     user_info = st.session_state.get("cloud_user") or {}
-    user_login = user_info.get("login") or user_info.get("username") or "Пользователь"
+    user_login = user_info.get("login") or user_info.get("username") or st.session_state.get("admin_user", "Пользователь")
 
     col_nav, col_user, col_refresh, col_open = st.columns([4.5, 2.5, 1.5, 2.5])
     
@@ -117,8 +91,12 @@ def cloud_files_page():
         if st.button("🚪 Выйти", key="btn_logout_user"):
             st.session_state["cloud_files_logged_in"] = False
             st.session_state["admin_logged_in"] = False
+            st.session_state.pop("admin_user", None)
+            st.session_state.pop("admin_role", None)
             st.session_state["cloud_user"] = None
+            st.session_state["admin_logout_submitted"] = True
             st.rerun()
+
 
     with col_refresh:
         if st.button("🔄 Обновить", use_container_width=True):
