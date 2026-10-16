@@ -87,7 +87,13 @@ def check_login():
 
     # 2. Проверка активной сессии (память)
     if st.session_state.get("logged_in"):
+        current_login = st.session_state.get("user_login")
+        if current_login:
+            actual_role = get_user_role(current_login)
+            if actual_role:
+                st.session_state["user_role"] = actual_role
         return True
+
 
     # 3. Нативное чтение куки с проверкой криптографической подписи HMAC
     if hasattr(st, "context") and hasattr(st.context, "cookies"):
