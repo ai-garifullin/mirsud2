@@ -5,7 +5,8 @@ from db_utils import *
 from email_monitor import send_email
 from not_bot import *
 import time
-import requests
+import requests  # type: ignore
+
 from urllib.parse import urlencode
 import hashlib
 import html

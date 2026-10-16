@@ -216,10 +216,10 @@ def get_recent_user_logs(limit: int = 50) -> list[dict[str, Any]]:
             ORDER BY log_id DESC 
             LIMIT %s
         """
-        cursor.execute(sql, (int(limit),))
+        cursor.execute(sql, (limit,))
         rows = cursor.fetchall()
         if not rows:
-            cursor.execute("SELECT log_id, timestamp, user_login, action_type, details FROM action_log ORDER BY log_id DESC LIMIT %s", (int(limit),))
+            cursor.execute("SELECT log_id, timestamp, user_login, action_type, details FROM action_log ORDER BY log_id DESC LIMIT %s", (limit,))
             rows = cursor.fetchall()
         return cast(list[dict[str, Any]], rows or [])
     except Exception:
@@ -422,7 +422,7 @@ def update_fuel_record(request_id, col_name, value):
         sql = f"UPDATE departure_record SET {col_name} = %s WHERE Request_ID = %s"
         cursor.execute(sql, (value, int(request_id)))
     else:
-        defaults = {'Mileage': 0, 'Fuel_Price': 0, 'Fuel_Consumption': 0}
+        defaults: dict[str, Any] = {'Mileage': 0.0, 'Fuel_Price': 0.0, 'Fuel_Consumption': 0.0}
         defaults[col_name] = value 
         sql = "INSERT INTO departure_record (Request_ID, Mileage, Fuel_Price, Fuel_Consumption) VALUES (%s, %s, %s, %s)"
         cursor.execute(sql, (int(request_id), defaults['Mileage'], defaults['Fuel_Price'], defaults['Fuel_Consumption']))
@@ -450,6 +450,7 @@ def add_request_message(request_id, sender_type, message_text, author, attachmen
     if not conn:
         return False
         
+    cursor = None
     try:
         cursor = conn.cursor()
         
@@ -480,30 +481,38 @@ def add_request_message(request_id, sender_type, message_text, author, attachmen
         return False
     finally:
         # Закрываем и курсор, и соединение
-        cursor.close()
+        if cursor:
+            cursor.close()
         conn.close()
         
 def get_user_tg_id(user_name):
     """Ищет telegram_id по полному имени пользователя в executor"""
+    conn = None
     try:
         conn = get_db_connection()
+        if not conn:
+            return None
         cursor = conn.cursor()
         
         query = "SELECT telegram_id FROM executor WHERE Full_Name = %s"
         cursor.execute(query, (user_name,))
         
         result = cursor.fetchone()
-        conn.close()
         
         # В mysql-connector result — это кортеж, поэтому result[0] верно
         return result[0] if result else None
     except Exception as e:
         return None
+    finally:
+        if conn:
+            conn.close()
     
 def get_director_tg_id():
     conn = None
     try:
         conn = get_db_connection()
+        if not conn:
+            return {}
         cursor = conn.cursor()
         
         # Ищем сразу двоих
@@ -531,7 +540,9 @@ def get_section_id_by_email(email):
             cursor = conn.cursor()
             cursor.execute("SELECT Section_ID FROM court_section WHERE Email = %s", (email,))
             res = cursor.fetchone()
-            return res[0] if res else None
+            if res:
+                return res[0] if isinstance(res, (tuple, list)) else res.get("Section_ID")
+            return None
         finally:
             conn.close()
     return None
@@ -545,7 +556,7 @@ def get_or_create_user(full_name):
             cursor.execute("SELECT User_ID FROM user WHERE Full_Name = %s", (full_name,))
             res = cursor.fetchone()
             if res:
-                return res[0]
+                return res[0] if isinstance(res, (tuple, list)) else res.get("User_ID")
             
             cursor.execute("INSERT INTO user (Full_Name) VALUES (%s)", (full_name,))
             conn.commit()
