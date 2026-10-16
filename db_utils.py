@@ -8,6 +8,7 @@ dotenv.load_dotenv()
 import time
 import hashlib
 import re
+from typing import Any, Optional, Dict, List, cast
 
 DB_HOST = os.getenv('DB_HOST', 'localhost')
 DB_USER = os.getenv('DB_USER', 'root')         
@@ -97,14 +98,15 @@ def get_db_connection():
 
 
 # --- ФУНКЦИИ АВТОРИЗАЦИИ И УПРАВЛЕНИЯ ПОЛЬЗОВАТЕЛЯМИ ---
-def get_user_by_login(login):
+def get_user_by_login(login: str) -> Optional[dict[str, Any]]:
     """Получает данные пользователя по логину."""
     conn = get_db_connection()
     if conn:
         try:
             cursor = conn.cursor(dictionary=True)
             cursor.execute("SELECT * FROM system_users WHERE login = %s", (login,))
-            return cursor.fetchone()
+            res = cursor.fetchone()
+            return cast(Optional[dict[str, Any]], res)
         finally:
             conn.close()
     return None
@@ -123,14 +125,15 @@ def get_user_role(login):
     user_data = get_user_by_login(login)
     return user_data['role'] if user_data else None
 
-def get_all_system_users():
+def get_all_system_users() -> list[dict[str, Any]]:
     """Получает всех пользователей системы для админ-панели."""
     conn = get_db_connection()
     if conn:
         try:
             cursor = conn.cursor(dictionary=True)
             cursor.execute("SELECT user_id, login, role, telegram_id FROM system_users ORDER BY user_id ASC")
-            return cursor.fetchall() or []
+            res = cursor.fetchall()
+            return cast(list[dict[str, Any]], res or [])
         finally:
             conn.close()
     return []
@@ -199,7 +202,7 @@ def delete_system_user(user_id):
     finally:
         conn.close()
 
-def get_recent_user_logs(limit=50):
+def get_recent_user_logs(limit: int = 50) -> list[dict[str, Any]]:
     """Получает последние записи аудита, связанные с пользователями."""
     conn = get_db_connection()
     if not conn:
@@ -218,7 +221,7 @@ def get_recent_user_logs(limit=50):
         if not rows:
             cursor.execute("SELECT log_id, timestamp, user_login, action_type, details FROM action_log ORDER BY log_id DESC LIMIT %s", (int(limit),))
             rows = cursor.fetchall()
-        return rows or []
+        return cast(list[dict[str, Any]], rows or [])
     except Exception:
         return []
     finally:
@@ -343,7 +346,7 @@ def fetch_single_request(request_id):
     conn.close()
     return data
 
-def fetch_request_messages(request_id):
+def fetch_request_messages(request_id: int) -> list[dict[str, Any]]:
     """Получает историю переписки по заявке."""
     conn = get_db_connection()
     if not conn: return []
@@ -356,7 +359,7 @@ def fetch_request_messages(request_id):
             ORDER BY Created_At ASC
         """
         cursor.execute(query, (request_id,))
-        return cursor.fetchall()
+        return cast(list[dict[str, Any]], cursor.fetchall())
     finally:
         conn.close()
 

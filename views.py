@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+from typing import Any
 from db_utils import *
 from email_monitor import send_email
 from not_bot import *
@@ -216,7 +217,7 @@ def render_detail_view(request_id):
             """, unsafe_allow_html=True)
 
             # 2. ПОЛУЧЕНИЕ ПЕРЕПИСКИ (Из таблицы request_message)
-            messages = fetch_request_messages(request_id)
+            messages: list[dict[str, Any]] = fetch_request_messages(request_id)
             
             # 3. ЦИКЛ ОТРИСОВКИ СООБЩЕНИЙ
             for msg in messages:
@@ -236,8 +237,8 @@ def render_detail_view(request_id):
                 clean_text = html.escape(raw_text).replace('\n', '<br>')
                 created_at = msg.get('Created_At')
                 formatted_date = created_at.strftime('%d.%m %H:%M') if created_at else ''
-                escaped_name = html.escape(str(name))
-                escaped_date = html.escape(str(formatted_date))
+                escaped_name = html.escape(name)
+                escaped_date = html.escape(formatted_date)
 
                 # 3. Выводим экранированную f-строку
                 st.markdown(f"""
@@ -520,11 +521,16 @@ def render_detail_view(request_id):
                     
                     # Уведомление директору
                     if new_status == '⚙️ В работе':
-                        director_tg_id = get_director_tg_id()
-                        if director_tg_id:
+                        directors_dict = get_director_tg_id()
+                        if directors_dict:
                             msg = format_request_message(data, f"🛠 Заявка #{request_id} взята в работу!")
                             msg += f"\n\n👤 <b>Исполнитель:</b> {new_executor}"
-                            bot.send_message(director_tg_id, msg, parse_mode="HTML")
+                            for dir_name, dir_tg_id in directors_dict.items():
+                                if dir_tg_id:
+                                    try:
+                                        bot.send_message(dir_tg_id, msg, parse_mode="HTML")
+                                    except Exception as e:
+                                        print(f"Ошибка отправки уведомления директору {dir_name}: {e}")
 
                 # 2. ИСПОЛНИТЕЛЬ
                 if str(new_executor) != str(data.get('Executor_Name', '')):

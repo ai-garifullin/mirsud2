@@ -49,8 +49,9 @@ def verify_auth_cookie(cookie_val: str, max_age_days: int = 30) -> Optional[str]
 
 def set_auth_cookie(login_val: str):
     """Устанавливает куки авторизации на 30 дней."""
-    signed_token = sign_auth_cookie(str(login_val))
+    signed_token = sign_auth_cookie(login_val)
     token_safe = json.dumps(signed_token)
+
     js_code = f"""
         <script>
             var d = new Date();
@@ -91,8 +92,9 @@ else:
         if hasattr(st, "context") and hasattr(st.context, "cookies"):
             raw_cookie = st.context.cookies.get("mirsud_admin_user") or st.context.cookies.get("mirsud_user")
             if raw_cookie:
-                decoded_cookie = unquote(str(raw_cookie))
+                decoded_cookie = unquote(raw_cookie)
                 valid_login = verify_auth_cookie(decoded_cookie)
+
                 if valid_login:
                     user_db = get_user_by_login(valid_login)
                     if user_db:

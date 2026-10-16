@@ -2,6 +2,7 @@ import hashlib
 import getpass
 import re
 import time
+from typing import Any
 import pandas as pd
 import streamlit as st
 import os
@@ -142,7 +143,7 @@ def render_user_management_page():
 
     # Загрузка пользователей из базы
     try:
-        users = get_all_system_users()
+        users: list[dict[str, Any]] = get_all_system_users()
     except Exception as e:
         users = []
         st.error(f"Ошибка при получении списка пользователей: {e}")
@@ -504,7 +505,7 @@ def render_user_management_page():
         st.caption("История создания, изменения ролей, смены паролей и удаления учетных записей")
 
         try:
-            logs = get_recent_user_logs(limit=50)
+            logs: list[dict[str, Any]] = get_recent_user_logs(limit=50)
         except Exception as e:
             logs = []
             st.error(f"Ошибка загрузки журнала: {e}")
